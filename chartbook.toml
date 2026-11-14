@@ -1,0 +1,69 @@
+[project]
+name = "CAPM and FF3 Fits of the Six Size/Value Portfolios"
+description = "Time-series CAPM and Fama-French three-factor fits of the six size and book-to-market portfolios, over the full sample and the last 60 months, with the portfolios' monthly returns. Computed by my FINM 32800 HW 1 pipeline. Derived data only: no stock-level CRSP or Compustat records."
+maintainer = "James Rosenberger"
+contributors = ["James Rosenberger"]
+repo_url = "https://github.com/JamesRosenberger-Github/capm-ff3-size-value"
+copyright = "2026"
+os_compatibility = ["Windows", "Linux", "macOS"]
+requires_chartbook = ">=0.5.1"
+
+
+## The tables this repository publishes. They are committed, not built: the
+## export that writes them runs my private HW 1 pipeline (CRSP and Compustat
+## from WRDS), so there is no [scripts]. The data cutoff is September 2026,
+## the last month of CRSP's monthly stock file at the time of the export.
+[dataframes.capm_ff3_fits]
+name = "CAPM and FF3 Fits by Portfolio and Window"
+description = "Annualized alpha, its t-statistic, factor betas, and R-squared of the CAPM and the three-factor model for each of the six size/book-to-market portfolios, over two windows."
+sources = ["CRSP monthly stock file", "Compustat annual fundamentals", "Fama-French factors"]
+providers = ["WRDS (CRSP, Compustat)", "Kenneth R. French Data Library (via WRDS ff.factors_monthly)"]
+provider_links = ["https://wrds-www.wharton.upenn.edu/", "https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html"]
+access_types = ["Public"]
+license = "The fitted statistics are mine to share. The CRSP and Compustat records they are computed from are licensed through WRDS and are not redistributed here."
+pull_method = "Committed CSV, written by export_hw1_fits.py from the HW 1 pipeline's six portfolios (calc_Fama_French_1993) and its regressions (calc_CAPM_and_FF3)"
+tags = ["Asset pricing", "CAPM", "Fama-French", "Size", "Value"]
+date_col = "window_end"
+path = "./capm_ff3_fits.csv"
+docs = """One row per window, model, and portfolio (2 x 2 x 6 = 24 rows).
+
+Each row is a monthly time-series regression of the portfolio's excess return
+(its value-weighted return minus the one-month T-bill rate) on the market
+excess return (`CAPM`) or on the market, SMB, and HML (`FF3`). The portfolios
+are my replication of the six Fama-French (1993) size/book-to-market
+portfolios; the factors and the risk-free rate are Ken French's.
+
+- `window`: `full` (every month the portfolios and factors share) or
+  `last_60m` (the last 60 of those months).
+- `window_start`, `window_end`: the first and last month-end in the window.
+- `n_months`: the number of monthly observations.
+- `model`: `CAPM` or `FF3`.
+- `portfolio`: `SL`, `SME`, `SH`, `BL`, `BME`, `BH` (Small or Big, then Low,
+  Medium, or High book-to-market).
+- `alpha_annual`: the intercept times 12, a decimal (0.01 is one percent a year).
+- `alpha_t`: the intercept's t-statistic (OLS standard errors).
+- `beta_mkt`, `beta_smb`, `beta_hml`: the slopes; SMB and HML are empty for CAPM.
+- `r_squared`: the regression's R-squared.
+"""
+
+[dataframes.size_value_returns]
+name = "Six Size/Book-to-Market Portfolio Returns"
+description = "Monthly value-weighted returns of the six size/book-to-market portfolios, from my replication of Fama and French (1993)."
+sources = ["CRSP monthly stock file", "Compustat annual fundamentals"]
+providers = ["WRDS (CRSP, Compustat)"]
+provider_links = ["https://wrds-www.wharton.upenn.edu/"]
+access_types = ["Public"]
+license = "Portfolio returns are aggregates and mine to share. The stock-level records they are computed from are licensed through WRDS and are not redistributed here."
+pull_method = "Committed CSV, written by export_hw1_fits.py from the HW 1 pipeline (calc_Fama_French_1993)"
+tags = ["Asset pricing", "Fama-French", "Size", "Value", "Portfolio returns"]
+date_col = "date"
+path = "./size_value_returns.csv"
+docs = """One row per month-end date and portfolio, over the same months as the
+`full` window of `capm_ff3_fits`.
+
+- `date`: the month-end.
+- `portfolio`: `SL`, `SME`, `SH`, `BL`, `BME`, `BH` (Small or Big, then Low,
+  Medium, or High book-to-market), formed each June from CRSP and Compustat.
+- `ret`: the portfolio's value-weighted monthly return, a decimal (0.01 is one
+  percent). Not in excess of the risk-free rate.
+"""
