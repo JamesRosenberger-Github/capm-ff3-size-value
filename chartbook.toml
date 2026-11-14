@@ -1,6 +1,6 @@
 [project]
 name = "CAPM and FF3 Fits of the Six Size/Value Portfolios"
-description = "Time-series CAPM and Fama-French three-factor fits of the six size and book-to-market portfolios, over the full sample and the last 60 months, with the portfolios' monthly returns. Computed by my FINM 32800 HW 1 pipeline. Derived data only: no stock-level CRSP or Compustat records."
+description = "Time-series CAPM and Fama-French three-factor fits of the six size and book-to-market portfolios, over the full sample and the last 60 months, a joint test of their alphas, and the portfolios' monthly returns. Computed by my FINM 32800 HW 1 pipeline. Derived data only: no stock-level CRSP or Compustat records."
 maintainer = "James Rosenberger"
 contributors = ["James Rosenberger"]
 repo_url = "https://github.com/JamesRosenberger-Github/capm-ff3-size-value"
@@ -44,6 +44,35 @@ portfolios; the factors and the risk-free rate are Ken French's.
 - `alpha_t`: the intercept's t-statistic (OLS standard errors).
 - `beta_mkt`, `beta_smb`, `beta_hml`: the slopes; SMB and HML are empty for CAPM.
 - `r_squared`: the regression's R-squared.
+"""
+
+[dataframes.joint_alpha_tests]
+name = "Joint Tests of Alphas by Model and Window"
+description = "The Gibbons, Ross, and Shanken (1989) F test that all six portfolios' alphas are zero at once, for the CAPM and the three-factor model, over two windows."
+sources = ["CRSP monthly stock file", "Compustat annual fundamentals", "Fama-French factors"]
+providers = ["WRDS (CRSP, Compustat)", "Kenneth R. French Data Library (via WRDS ff.factors_monthly)"]
+provider_links = ["https://wrds-www.wharton.upenn.edu/", "https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html"]
+access_types = ["Public"]
+license = "The test statistics are mine to share. The CRSP and Compustat records they are computed from are licensed through WRDS and are not redistributed here."
+pull_method = "Committed CSV, written by export_hw1_fits.py (joint_alpha_test) from the same portfolios and factors as capm_ff3_fits"
+tags = ["Asset pricing", "CAPM", "Fama-French", "GRS test"]
+date_col = "window_end"
+path = "./joint_alpha_tests.csv"
+docs = """One row per window and model (2 x 2 = 4 rows).
+
+The six time-series regressions of `capm_ff3_fits` give six alphas whose
+estimation errors are correlated, because the portfolios' residuals are. This
+test uses the residual covariance across portfolios to ask whether all six
+alphas are zero jointly:
+F = (T - N - K) / N * (a' S^-1 a) / (1 + m' W^-1 m) ~ F(N, T - N - K),
+with a the alphas, S the residual covariance, m and W the factor means and
+covariance (all maximum-likelihood, dividing by T), N = 6 portfolios, and K
+factors.
+
+- `window`, `window_start`, `window_end`, `n_months`, `model`: as in `capm_ff3_fits`.
+- `f_stat`: the F statistic.
+- `df_num`, `df_den`: its degrees of freedom, N and T - N - K.
+- `p_value`: the probability of an F at least this large if every alpha is zero.
 """
 
 [dataframes.size_value_returns]

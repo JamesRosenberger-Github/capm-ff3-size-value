@@ -7,6 +7,7 @@ issue #116: *Does the CAPM price the size and value portfolios?*).
 | File | ChartBook dataframe | What it holds |
 |---|---|---|
 | `capm_ff3_fits.csv` | `capm_ff3_fits` | Alpha, t(alpha), betas, and R-squared of the CAPM and the Fama-French three-factor model for each of the six size/book-to-market portfolios, over the full sample and the last 60 months |
+| `joint_alpha_tests.csv` | `joint_alpha_tests` | A joint test that all six alphas are zero (Gibbons, Ross, and Shanken 1989), for each model and window |
 | `size_value_returns.csv` | `size_value_returns` | The six portfolios' value-weighted monthly returns |
 
 `chartbook.toml` documents every column. Data through September 2026, the last
@@ -22,8 +23,9 @@ never a stock-level record. The factors and the risk-free rate are Ken French's.
 
 `export_hw1_fits.py` runs against a local checkout of the HW 1 pipeline after
 its `doit` has built the six portfolios and pulled the factors. It reuses the
-HW 1 regression code (`calc_CAPM_and_FF3.py`) on each window and writes the
-two CSVs. The HW 1 solutions themselves are not published.
+HW 1 regression code (`calc_CAPM_and_FF3.py`) on each window, adds the joint
+test of alphas, and writes the three CSVs. `test_export_hw1_fits.py` checks the
+joint test (`pytest test_export_hw1_fits.py`). The HW 1 solutions themselves are not published.
 
 ```bash
 python export_hw1_fits.py --hw1-dir ../hw1_rerun

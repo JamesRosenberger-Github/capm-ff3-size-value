@@ -4,9 +4,12 @@ Export the CAPM and FF3 fits of the six size/value portfolios from the HW 1 pipe
 Reads the HW 1 pipeline's six Fama-French (1993) portfolios and Ken French's
 factors through its own `calc_CAPM_and_FF3.load_test_assets`, runs its
 `calc_capm_table` and `calc_ff3_table` on two windows (every common month, and
-the last 60), and writes two derived CSVs beside this script:
+the last 60), runs a joint test that all six alphas are zero (Gibbons, Ross,
+and Shanken 1989) for each model and window, and writes three derived CSVs
+beside this script:
 
 - `capm_ff3_fits.csv`: one row per window, model, and portfolio.
+- `joint_alpha_tests.csv`: one row per window and model.
 - `size_value_returns.csv`: the six portfolios' monthly returns.
 
 Usage: python export_hw1_fits.py --hw1-dir ../hw1_rerun
@@ -16,7 +19,9 @@ import argparse
 import sys
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
+from scipy import stats
 
 HERE = Path(__file__).resolve().parent
 SIX = ["SL", "SME", "SH", "BL", "BME", "BH"]
@@ -107,6 +112,40 @@ def fit_window(
     return pd.DataFrame(rows)
 
 
+def joint_alpha_test(excess: pd.DataFrame, factors: pd.DataFrame) -> dict:
+    """
+    Test that every portfolio's alpha is zero at once (Gibbons, Ross, and Shanken 1989).
+
+    Inputs:
+        excess (pd.DataFrame): monthly excess returns, T rows by N portfolios
+        factors (pd.DataFrame): monthly factor returns on the same rows, T by K
+
+    Returns (dict): f_stat, df_num (N), df_den (T - N - K), and p_value of the F test.
+    """
+    T, N = excess.shape
+    K = factors.shape[1]
+    X = np.column_stack([np.ones(T), factors.to_numpy()])
+    B = np.linalg.lstsq(X, excess.to_numpy(), rcond=None)[0]
+    alpha = B[0]
+    resid = excess.to_numpy() - X @ B
+    sigma = resid.T @ resid / T  # residual covariance across portfolios (MLE)
+    mu = factors.to_numpy().mean(axis=0)
+    omega = np.atleast_2d(np.cov(factors.to_numpy().T, ddof=0))  # factor covariance (MLE)
+    f_stat = (
+        (T - N - K)
+        / N
+        * (alpha @ np.linalg.solve(sigma, alpha))
+        / (1 + mu @ np.linalg.solve(omega, mu))
+    )
+    df_den = T - N - K
+    return {
+        "f_stat": f_stat,
+        "df_num": N,
+        "df_den": df_den,
+        "p_value": float(stats.f.sf(f_stat, N, df_den)),
+    }
+
+
 def build_fits(hw1, portfolios: pd.DataFrame, factors: pd.DataFrame, excess: pd.DataFrame) -> pd.DataFrame:
     """
     Fit both models on the full sample and on the last 60 months.
@@ -129,6 +168,36 @@ def build_fits(hw1, portfolios: pd.DataFrame, factors: pd.DataFrame, excess: pd.
         ],
         ignore_index=True,
     )
+
+
+MODELS = {"CAPM": ["Mkt-RF"], "FF3": ["Mkt-RF", "SMB", "HML"]}
+
+
+def build_joint_tests(factors: pd.DataFrame, excess: pd.DataFrame) -> pd.DataFrame:
+    """
+    Run the joint test of alphas for both models on the full sample and the last 60 months.
+
+    Inputs:
+        factors (pd.DataFrame): Mkt-RF, SMB, HML, RF
+        excess (pd.DataFrame): the six portfolios' excess returns on the same months
+
+    Returns (pd.DataFrame): 4 rows, window x model.
+    """
+    windows = {"full": excess.index, "last_60m": excess.index[-RECENT_MONTHS:]}
+    rows = []
+    for window, months in windows.items():
+        for model, cols in MODELS.items():
+            rows.append(
+                {
+                    "window": window,
+                    "window_start": months.min().date(),
+                    "window_end": months.max().date(),
+                    "n_months": len(months),
+                    "model": model,
+                    **joint_alpha_test(excess.loc[months, SIX], factors.loc[months, cols]),
+                }
+            )
+    return pd.DataFrame(rows)
 
 
 def returns_long(portfolios: pd.DataFrame) -> pd.DataFrame:
@@ -161,22 +230,27 @@ def _portfolio_order(col: pd.Series) -> pd.Series:
 
 def main(hw1_dir: Path) -> None:
     """
-    Write capm_ff3_fits.csv and size_value_returns.csv beside this script.
+    Write capm_ff3_fits.csv, joint_alpha_tests.csv, and size_value_returns.csv beside this script.
 
     Inputs:
         hw1_dir (Path): root of the HW 1 checkout whose `doit` has run
 
-    Returns (None): writes two CSVs and prints a summary.
+    Returns (None): writes three CSVs and prints a summary.
     """
     hw1 = load_hw1(hw1_dir)
     portfolios, factors, excess = six_portfolio_assets(hw1)
     fits = build_fits(hw1, portfolios, factors, excess)
     fits.to_csv(HERE / "capm_ff3_fits.csv", index=False, float_format="%.10g", lineterminator="\n")
+    joint = build_joint_tests(factors, excess)
+    joint.to_csv(
+        HERE / "joint_alpha_tests.csv", index=False, float_format="%.10g", lineterminator="\n"
+    )
     returns_long(portfolios).to_csv(
         HERE / "size_value_returns.csv", index=False, float_format="%.10g", lineterminator="\n"
     )
     print(f"months: {portfolios.index.min():%Y-%m} to {portfolios.index.max():%Y-%m} ({len(portfolios)})")
     print(fits.round(3).to_string())
+    print(joint.round(4).to_string())
 
 
 if __name__ == "__main__":
