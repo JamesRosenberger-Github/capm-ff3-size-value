@@ -51,3 +51,37 @@ def test_portfolio_order_does_not_change_the_joint_test():
     forward = export.joint_alpha_test(excess, mkt)
     backward = export.joint_alpha_test(excess[excess.columns[::-1]], mkt)
     assert forward["f_stat"] == pytest.approx(backward["f_stat"])
+
+
+def test_loading_stats_match_an_ols_by_hand():
+    rng = np.random.default_rng(11)
+    T = 90
+    factors = pd.DataFrame(
+        rng.normal(0.005, 0.03, (T, 3)), columns=["Mkt-RF", "SMB", "HML"]
+    )
+    y = pd.Series(0.001 + factors.to_numpy() @ [1.0, 0.2, 0.8] + rng.normal(0, 0.01, T))
+    stats_ = export.loading_stats(y, factors)
+
+    X = np.column_stack([np.ones(T), factors.to_numpy()])
+    b = np.linalg.lstsq(X, y.to_numpy(), rcond=None)[0]
+    e = y.to_numpy() - X @ b
+    se = np.sqrt(e @ e / (T - 4) * np.diag(np.linalg.inv(X.T @ X)))
+    assert stats_["hml_t"] == pytest.approx(b[3] / se[3])
+    assert stats_["smb_t"] == pytest.approx(b[2] / se[2])
+    assert stats_["mkt_t"] == pytest.approx(b[1] / se[1])
+
+    # R-squared with HML left out: regress on the market and SMB only.
+    Xs = X[:, :3]
+    es = y.to_numpy() - Xs @ np.linalg.lstsq(Xs, y.to_numpy(), rcond=None)[0]
+    tss = ((y - y.mean()) ** 2).sum()
+    assert stats_["r_squared_mkt_smb"] == pytest.approx(1 - es @ es / tss)
+
+
+def test_loading_stats_for_the_capm_have_only_a_market_t():
+    rng = np.random.default_rng(12)
+    mkt = pd.DataFrame({"Mkt-RF": rng.normal(0.005, 0.04, 60)})
+    y = pd.Series(mkt["Mkt-RF"] * 1.2 + rng.normal(0, 0.01, 60))
+    stats_ = export.loading_stats(y, mkt)
+    assert stats_["mkt_t"] > 0
+    assert np.isnan(stats_["smb_t"]) and np.isnan(stats_["hml_t"])
+    assert np.isnan(stats_["r_squared_mkt_smb"])

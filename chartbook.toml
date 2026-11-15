@@ -15,7 +15,7 @@ requires_chartbook = ">=0.5.1"
 ## the last month of CRSP's monthly stock file at the time of the export.
 [dataframes.capm_ff3_fits]
 name = "CAPM and FF3 Fits by Portfolio and Window"
-description = "Annualized alpha, its t-statistic, factor betas, and R-squared of the CAPM and the three-factor model for each of the six size/book-to-market portfolios, over two windows."
+description = "Annualized alpha, its t-statistic, factor betas and their t-statistics, and R-squared (with and without HML) of the CAPM and the three-factor model for each of the six size/book-to-market portfolios, over two windows."
 sources = ["CRSP monthly stock file", "Compustat annual fundamentals", "Fama-French factors"]
 providers = ["WRDS (CRSP, Compustat)", "Kenneth R. French Data Library (via WRDS ff.factors_monthly)"]
 provider_links = ["https://wrds-www.wharton.upenn.edu/", "https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html"]
@@ -44,6 +44,11 @@ portfolios; the factors and the risk-free rate are Ken French's.
 - `alpha_t`: the intercept's t-statistic (OLS standard errors).
 - `beta_mkt`, `beta_smb`, `beta_hml`: the slopes; SMB and HML are empty for CAPM.
 - `r_squared`: the regression's R-squared.
+- `mkt_t`, `smb_t`, `hml_t`: the t-statistics of the slopes (OLS); SMB and HML
+  are empty for CAPM.
+- `r_squared_mkt_smb`: for FF3 rows, the R-squared of the same regression with
+  HML left out (market and SMB only), so that `r_squared - r_squared_mkt_smb`
+  is what HML adds; empty for CAPM.
 """
 
 [dataframes.joint_alpha_tests]

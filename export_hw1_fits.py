@@ -19,6 +19,7 @@ import argparse
 import sys
 from pathlib import Path
 
+import finm
 import numpy as np
 import pandas as pd
 from scipy import stats
@@ -27,6 +28,7 @@ HERE = Path(__file__).resolve().parent
 SIX = ["SL", "SME", "SH", "BL", "BME", "BH"]
 RECENT_MONTHS = 60
 CUTOFF = pd.Timestamp("2026-10-31")  # the class report's data cutoff
+MODELS = {"CAPM": ["Mkt-RF"], "FF3": ["Mkt-RF", "SMB", "HML"]}
 
 
 def load_hw1(hw1_dir: Path):
@@ -70,6 +72,32 @@ def six_portfolio_assets(hw1) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]
     return portfolios, factors, excess
 
 
+def loading_stats(excess_one: pd.Series, factors: pd.DataFrame) -> dict:
+    """
+    The t-statistic of each factor loading, and the R-squared with HML left out.
+
+    Uses the same regression routine as HW 1 (finm.run_factor_regression, OLS).
+
+    Inputs:
+        excess_one (pd.Series): one portfolio's monthly excess returns
+        factors (pd.DataFrame): the model's factors on the same months (Mkt-RF, and SMB, HML for FF3)
+
+    Returns (dict): mkt_t, smb_t, hml_t (NaN if not in the model), and r_squared_mkt_smb (NaN for CAPM).
+    """
+    full = finm.run_factor_regression(excess_one, factors)
+    out = {
+        "mkt_t": full.beta_tstats["Mkt-RF"],
+        "smb_t": full.beta_tstats.get("SMB", np.nan),
+        "hml_t": full.beta_tstats.get("HML", np.nan),
+        "r_squared_mkt_smb": np.nan,
+    }
+    if "HML" in factors.columns:
+        out["r_squared_mkt_smb"] = finm.run_factor_regression(
+            excess_one, factors[["Mkt-RF", "SMB"]]
+        ).r_squared
+    return out
+
+
 def fit_window(
     hw1, portfolios: pd.DataFrame, factors: pd.DataFrame, excess: pd.DataFrame, window: str
 ) -> pd.DataFrame:
@@ -107,6 +135,7 @@ def fit_window(
                     "beta_smb": r.get("Beta SMB"),
                     "beta_hml": r.get("Beta HML"),
                     "r_squared": r["R-squared"],
+                    **loading_stats(excess[portfolio], factors[MODELS[model]]),
                 }
             )
     return pd.DataFrame(rows)
@@ -168,9 +197,6 @@ def build_fits(hw1, portfolios: pd.DataFrame, factors: pd.DataFrame, excess: pd.
         ],
         ignore_index=True,
     )
-
-
-MODELS = {"CAPM": ["Mkt-RF"], "FF3": ["Mkt-RF", "SMB", "HML"]}
 
 
 def build_joint_tests(factors: pd.DataFrame, excess: pd.DataFrame) -> pd.DataFrame:

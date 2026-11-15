@@ -6,7 +6,7 @@ issue #116: *Does the CAPM price the size and value portfolios?*).
 
 | File | ChartBook dataframe | What it holds |
 |---|---|---|
-| `capm_ff3_fits.csv` | `capm_ff3_fits` | Alpha, t(alpha), betas, and R-squared of the CAPM and the Fama-French three-factor model for each of the six size/book-to-market portfolios, over the full sample and the last 60 months |
+| `capm_ff3_fits.csv` | `capm_ff3_fits` | Alpha, t(alpha), betas and their t-statistics, and R-squared (with and without HML) of the CAPM and the Fama-French three-factor model for each of the six size/book-to-market portfolios, over the full sample and the last 60 months |
 | `joint_alpha_tests.csv` | `joint_alpha_tests` | A joint test that all six alphas are zero (Gibbons, Ross, and Shanken 1989), for each model and window |
 | `size_value_returns.csv` | `size_value_returns` | The six portfolios' value-weighted monthly returns |
 
